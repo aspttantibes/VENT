@@ -812,7 +812,6 @@
         }
         const gustAt = Number(data.gustAt);
         if (Number.isFinite(gustAt) && gustAt > 0) dailyMaxGustAt = new Date(gustAt).toISOString();
-        warnings.push("Periode de mesure non precisee");
         directionDegrees = Number.isFinite(Number(data.windDirection)) ? Number(data.windDirection) : null;
       }
 
@@ -948,6 +947,8 @@
 
         const meanRounded = obs && obs.meanWindKnots !== null ? Math.round(obs.meanWindKnots) : null;
         const gustRounded = obs && obs.gustKnots !== null ? Math.round(obs.gustKnots) : null;
+        const currentOnly = Boolean(obs && obs.currentWindKnots !== null
+          && obs.meanWindKnots === null && obs.gustKnots === null);
 
         let stateText = "Indisponible";
         let stateClass = "state-warn";
@@ -973,7 +974,7 @@
         nameBtn.className = "name-link";
         nameBtn.textContent = station.name;
         nameBtn.addEventListener("click", () => window.open(station.url, "_blank", "noopener"));
-        const primaryWind = obs && obs.meanWindKnots !== null
+        const primaryWind = currentOnly && isOld ? null : obs && obs.meanWindKnots !== null
           ? obs.meanWindKnots
           : obs && obs.currentWindKnots !== null
             ? obs.currentWindKnots
@@ -1011,8 +1012,6 @@
 
         const lineMain = document.createElement("div");
         lineMain.className = "line-main";
-        const currentOnly = Boolean(obs && obs.currentWindKnots !== null
-          && obs.meanWindKnots === null && obs.gustKnots === null);
         const mean = document.createElement("span");
         mean.className = meanRounded === null ? "" : pickWindClass(meanRounded);
         mean.textContent = `Moyen ${meanRounded === null ? "-" : meanRounded + " nd"}`;
@@ -1026,10 +1025,17 @@
           dir.textContent = `${obs.directionLabel || "Variable"}${obs.directionDegrees === null ? "" : " " + Math.round(obs.directionDegrees) + "deg"}`;
         }
         if (currentOnly) {
-          const measured = document.createElement("span");
-          measured.className = pickWindClass(Math.round(obs.currentWindKnots));
-          measured.textContent = `Vent mesuré ${Math.round(obs.currentWindKnots)} nd`;
-          lineMain.append(measured, dir);
+          if (isOld) {
+            const oldMeasurement = document.createElement("span");
+            oldMeasurement.className = "state-warn";
+            oldMeasurement.textContent = "Vent masqué : mesure ancienne";
+            lineMain.append(oldMeasurement);
+          } else {
+            const measured = document.createElement("span");
+            measured.className = pickWindClass(Math.round(obs.currentWindKnots));
+            measured.textContent = `Vent mesuré ${Math.round(obs.currentWindKnots)} nd`;
+            lineMain.append(measured, dir);
+          }
         } else {
           lineMain.append(mean, gust, dir);
         }
