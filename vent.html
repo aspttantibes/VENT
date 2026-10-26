@@ -1,0 +1,1297 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Speedy - comparateur vent</title>
+  <style>
+    :root {
+      --bg: #f2f4ef;
+      --surface: #ffffff;
+      --ink: #1a1f1a;
+      --muted: #5a655c;
+      --brand: #1f6f5d;
+      --danger: #b3362f;
+      --ok: #2e7d32;
+      --warn: #b66a00;
+      --neutral: #666;
+      --wind-low: #4b5563;
+      --wind-low-mark: #90caf9;
+      --wind-mid: #087f3e;
+      --wind-mid-mark: #16a34a;
+      --wind-high: #b54708;
+      --wind-high-mark: #f08a00;
+      --wind-extreme: #b42318;
+      --wind-extreme-mark: #d5001c;
+      --border: #d8ddd5;
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: var(--ink);
+      background: radial-gradient(circle at 20% 20%, #fbfcfa, var(--bg));
+      min-height: 100vh;
+    }
+    .wrap {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 12px 12px 28px;
+    }
+    header {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .title {
+      margin: 0;
+      font-size: 1.2rem;
+      line-height: 1.2;
+      letter-spacing: 0.2px;
+    }
+    .brand-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .wind-legend {
+      position: relative;
+      flex: 0 0 auto;
+      margin: 0;
+      overflow: visible;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+    }
+    .wind-legend summary {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 40px;
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .wind-legend-mark {
+      display: grid;
+      grid-template-columns: repeat(2, 7px);
+      gap: 2px;
+      padding: 2px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+    .wind-legend-mark span { width: 7px; height: 7px; border-radius: 2px; }
+    .wind-legend-low { background: var(--wind-low-mark); }
+    .wind-legend-mid { background: var(--wind-mid-mark); }
+    .wind-legend-high { background: var(--wind-high-mark); }
+    .wind-legend-extreme { background: var(--wind-extreme-mark); }
+    .wind-legend-items {
+      position: absolute;
+      z-index: 2;
+      top: calc(100% + 5px);
+      right: 0;
+      display: grid;
+      gap: 7px;
+      min-width: 185px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+      font-size: 0.82rem;
+    }
+    .wind-legend-item { display: flex; align-items: center; gap: 8px; }
+    .wind-legend-swatch { width: 10px; height: 10px; border-radius: 2px; }
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    button {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--ink);
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-size: 0.98rem;
+      line-height: 1;
+      min-height: 42px;
+    }
+    button.primary {
+      background: var(--brand);
+      border-color: var(--brand);
+      color: #fff;
+      font-weight: 600;
+    }
+    button:disabled { opacity: 0.55; }
+    .refresh-station {
+      width: 38px;
+      min-width: 38px;
+      height: 38px;
+      min-height: 38px;
+      padding: 0;
+      border-radius: 10px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--brand);
+    }
+    .card-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .statusbar {
+      font-size: 0.86rem;
+      color: var(--muted);
+      min-height: 1.2em;
+    }
+    .cards {
+      display: grid;
+      gap: 10px;
+    }
+    .card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      padding: 12px;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.03);
+    }
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      gap: 8px;
+    }
+    .name-link {
+      border: 0;
+      padding: 0;
+      background: none;
+      color: #124f90;
+      text-align: left;
+      text-decoration: underline;
+      font-weight: 600;
+      min-height: auto;
+    }
+    .station-name-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .station-wind-mark {
+      display: inline-grid;
+      width: 17px;
+      height: 17px;
+      flex: 0 0 17px;
+      place-items: center;
+      border-radius: 4px;
+      color: #fff;
+    }
+    .station-wind-mark.wind-low { background: var(--wind-low-mark); }
+    .station-wind-mark.wind-mid { background: var(--wind-mid-mark); }
+    .station-wind-mark.wind-high { background: var(--wind-high-mark); }
+    .station-wind-mark.wind-extreme { background: var(--wind-extreme-mark); }
+    .station-wind-mark.wind-unknown { background: #879087; }
+    .provider {
+      color: var(--muted);
+      font-size: 0.83rem;
+    }
+    .line-main {
+      margin-top: 8px;
+      font-size: 1.05rem;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: baseline;
+    }
+    .line-sub {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .chip {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 0.78rem;
+      border: 1px solid var(--border);
+      background: #f7f8f6;
+      color: #394138;
+      margin-left: 6px;
+    }
+    .wind-low { color: var(--wind-low); }
+    .wind-mid { color: var(--wind-mid); }
+    .wind-high { color: var(--wind-high); }
+    .wind-extreme { color: var(--wind-extreme); }
+    .state-ok { color: var(--ok); }
+    .state-warn { color: var(--warn); }
+    .state-error { color: var(--danger); }
+    details {
+      margin-top: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #fff;
+      overflow: hidden;
+    }
+    summary {
+      cursor: pointer;
+      padding: 10px 12px;
+      font-weight: 600;
+      list-style: none;
+    }
+    summary::-webkit-details-marker { display: none; }
+    .diag {
+      margin: 0;
+      padding: 0 12px 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 0.78rem;
+      line-height: 1.3;
+      color: #202220;
+    }
+    dialog {
+      width: min(680px, calc(100% - 16px));
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 0;
+    }
+    .dlg {
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+    .field { display: grid; gap: 6px; }
+    .field label { font-size: 0.9rem; color: #2f3930; }
+    .field input, .field textarea, .field select {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px;
+      font-size: 0.95rem;
+    }
+    textarea { min-height: 120px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .admin-station {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px;
+      display: grid;
+      gap: 8px;
+    }
+    .row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .hint { color: var(--muted); font-size: 0.82rem; }
+    @media (max-width: 560px) {
+      .grid2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand-row">
+        <h1 class="title">Speedy - comparateur vent</h1>
+        <details class="wind-legend">
+          <summary aria-label="Afficher les repères des niveaux de vent">
+            <span class="wind-legend-mark" aria-hidden="true">
+              <span class="wind-legend-low"></span>
+              <span class="wind-legend-mid"></span>
+              <span class="wind-legend-high"></span>
+              <span class="wind-legend-extreme"></span>
+            </span>
+            Repères
+          </summary>
+          <div class="wind-legend-items">
+            <span class="wind-legend-item"><span class="wind-legend-swatch wind-legend-low"></span><span id="legendLowText">Moins de 10 nd</span></span>
+            <span class="wind-legend-item"><span class="wind-legend-swatch wind-legend-mid"></span><span id="legendMidText">10 à moins de 25 nd</span></span>
+            <span class="wind-legend-item"><span class="wind-legend-swatch wind-legend-high"></span><span id="legendHighText">25 à 35 nd</span></span>
+            <span class="wind-legend-item"><span class="wind-legend-swatch wind-legend-extreme"></span><span id="legendExtremeText">Plus de 35 nd</span></span>
+          </div>
+        </details>
+      </div>
+      <div class="toolbar">
+        <button id="refreshBtn" class="primary">Tout actualiser</button>
+        <button type="button" id="forecastMapBtn">Carte prévision</button>
+        <button id="adminBtn">Administration</button>
+      </div>
+      <div id="globalStatus" class="statusbar"></div>
+    </header>
+
+    <main id="cards" class="cards"></main>
+
+    <details>
+      <summary>Diagnostics</summary>
+      <pre id="diag" class="diag"></pre>
+    </details>
+  </div>
+
+  <dialog id="adminDialog">
+    <form method="dialog" class="dlg" id="adminForm">
+      <h2 style="margin:0;font-size:1.08rem;">Administration</h2>
+
+      <div class="field">
+        <label for="relayUrl">URL du relais serverless (obligatoire)</label>
+        <input id="relayUrl" placeholder="https://votre-relay.workers.dev" autocomplete="off">
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label for="staleMinutes">Seuil mesure ancienne (minutes)</label>
+          <input id="staleMinutes" type="number" min="1" step="1">
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="field"><label for="thLow">Seuil bas (nd)</label><input id="thLow" type="number" min="0" step="1"></div>
+        <div class="field"><label for="thMid">Seuil moyen (nd)</label><input id="thMid" type="number" min="0" step="1"></div>
+        <div class="field"><label for="thHigh">Seuil fort (nd)</label><input id="thHigh" type="number" min="0" step="1"></div>
+      </div>
+
+      <div id="stationAdminList"></div>
+
+      <div class="field">
+        <label for="newName">Nouvelle station - nom</label>
+        <input id="newName" placeholder="Ex: Spot custom">
+      </div>
+      <div class="field">
+        <label for="newUrl">Nouvelle station - URL</label>
+        <input id="newUrl" placeholder="https://...">
+      </div>
+      <div class="row">
+        <button type="button" id="addStationBtn">Ajouter station</button>
+      </div>
+
+      <div class="field">
+        <label for="exportBox">Export JSON / Import JSON (coller ici)</label>
+        <textarea id="exportBox"></textarea>
+      </div>
+
+      <div class="row">
+        <button type="button" id="exportBtn">Exporter JSON</button>
+        <button type="button" id="downloadBtn">Telecharger JSON</button>
+        <button type="button" id="importBtn">Importer JSON</button>
+      </div>
+
+      <p class="hint">Le cache des observations n'est pas inclus dans l'export. Les configs local et HTTPS peuvent necessiter un transfert manuel.</p>
+
+      <div class="row">
+        <button type="button" id="saveAdminBtn" class="primary">Sauvegarder</button>
+        <button type="button" id="resetSettingsBtn">Réinitialiser la configuration</button>
+        <button value="cancel">Fermer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    const APP_VERSION = "0.1.0";
+    const STORAGE_KEY = "windsup.settings.v1";
+    const CACHE_KEY = "windsup.cache.v1";
+    const DEFAULT_STATION_MIGRATION_KEY = "windsup.default-stations.v1";
+    const NEW_DEFAULT_STATION_IDS = [
+      "st_frejus_aerodrome",
+      "st_hyeres_aeroport",
+      "st_ile_du_levant"
+    ];
+
+    const DEFAULT_SETTINGS = {
+      relayUrl: "https://mute-poetry-411d.jean-gonzalez.workers.dev",
+      staleMinutes: 30,
+      thresholds: { low: 10, mid: 25, high: 35 },
+      stations: [
+        {
+          id: "st_nice",
+          name: "Saint Laurent du Var - Aéroport",
+          provider: "meteociel",
+          url: "https://www.meteociel.fr/temps-reel/obs_villes.php?affint=1&code2=7690",
+          enabled: true
+        },
+        {
+          id: "st_antibes",
+          name: "Phare Antibes",
+          provider: "meteociel",
+          url: "https://www.meteociel.fr/temps-reel/obs_villes.php?affint=1&code2=7688",
+          enabled: true
+        },
+        {
+          id: "st_cannes",
+          name: "Palm Beach Cannes",
+          provider: "weatherlink",
+          url: "https://www.weatherlink.com/embeddablePage/show/9b7cc9ea56e1473ea49bc089e3f9e5dd/slim",
+          enabled: true
+        },
+        {
+          id: "st_st_raphael",
+          name: "Saint Raphael Lyon de Mer",
+          provider: "weatherlink",
+          url: "https://www.weatherlink.com/embeddablePage/show/d8f389c51427467eb5c4f266caaf78a9/summary",
+          enabled: true
+        },
+        {
+          id: "st_frejus_aerodrome",
+          name: "Aérodrome Fréjus (Saint Aygulf)",
+          provider: "meteociel",
+          url: "https://www.meteociel.fr/temps-reel/obs_villes.php?affint=1&code2=83061001",
+          enabled: true
+        },
+        {
+          id: "st_hyeres_aeroport",
+          name: "Aéroport Hyères (La Londe)",
+          provider: "meteociel",
+          url: "https://www.meteociel.fr/temps-reel/obs_villes.php?affint=1&code2=7667",
+          enabled: true
+        },
+        {
+          id: "st_ile_du_levant",
+          name: "Ile du Levant (Almanarre)",
+          provider: "meteociel",
+          url: "https://www.meteociel.fr/temps-reel/obs_villes.php?affint=1&code2=7678",
+          enabled: true
+        }
+      ]
+    };
+
+    const state = {
+      settings: null,
+      cache: {},
+      inFlight: false,
+      refreshingStationIds: new Set(),
+      diagLines: [],
+      lastRefreshStartedAt: null,
+      lastRefreshEndedAt: null
+    };
+
+    function safeJsonParse(text, fallback) {
+      try { return JSON.parse(text); } catch { return fallback; }
+    }
+
+    function nowIso() { return new Date().toISOString(); }
+
+    function logDiag(line) {
+      const stamp = new Date().toLocaleTimeString("fr-FR", { hour12: false });
+      state.diagLines.unshift(`[${stamp}] ${line}`);
+      state.diagLines = state.diagLines.slice(0, 500);
+      document.getElementById("diag").textContent = state.diagLines.join("\n");
+    }
+
+    function loadSettings() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+          markDefaultStationMigrationComplete();
+          return structuredClone(DEFAULT_SETTINGS);
+        }
+        const parsed = safeJsonParse(raw, null);
+        if (!parsed || typeof parsed !== "object") {
+          markDefaultStationMigrationComplete();
+          return structuredClone(DEFAULT_SETTINGS);
+        }
+        const settings = mergeSettings(parsed);
+        if (localStorage.getItem(DEFAULT_STATION_MIGRATION_KEY) === "1") return settings;
+
+        const existingIds = new Set(settings.stations.map((station) => station.id));
+        const existingUrls = new Set(settings.stations.map((station) => station.url));
+        for (const id of NEW_DEFAULT_STATION_IDS) {
+          const station = DEFAULT_SETTINGS.stations.find((item) => item.id === id);
+          if (station && !existingIds.has(station.id) && !existingUrls.has(station.url)) {
+            settings.stations.push(structuredClone(station));
+          }
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+        markDefaultStationMigrationComplete();
+        return settings;
+      } catch {
+        return structuredClone(DEFAULT_SETTINGS);
+      }
+    }
+
+    function markDefaultStationMigrationComplete() {
+      try {
+        localStorage.setItem(DEFAULT_STATION_MIGRATION_KEY, "1");
+      } catch {
+        // Storage may be unavailable in file mode; defaults remain usable for this session.
+      }
+    }
+
+    function mergeSettings(input) {
+      const out = structuredClone(DEFAULT_SETTINGS);
+      if (typeof input.relayUrl === "string") out.relayUrl = input.relayUrl.trim();
+      if (Number.isFinite(input.staleMinutes) && input.staleMinutes > 0) out.staleMinutes = Math.round(input.staleMinutes);
+      if (input.thresholds && typeof input.thresholds === "object") {
+        const t = input.thresholds;
+        if (Number.isFinite(t.low)) out.thresholds.low = Math.round(t.low);
+        if (Number.isFinite(t.mid)) out.thresholds.mid = Math.round(t.mid);
+        if (Number.isFinite(t.high)) out.thresholds.high = Math.round(t.high);
+      }
+      if (Array.isArray(input.stations)) {
+        out.stations = input.stations
+          .filter((s) => s && typeof s === "object")
+          .map((s, i) => ({
+            id: typeof s.id === "string" && s.id ? s.id : `st_custom_${i}_${Date.now()}`,
+            name: typeof s.name === "string" ? s.name.slice(0, 80) : "Station",
+            provider: detectProviderFromUrl(String(s.url || "")),
+            url: String(s.url || "").trim(),
+            enabled: s.enabled !== false
+          }))
+          .filter((s) => s.provider);
+      }
+      return out;
+    }
+
+    function saveSettings() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state.settings));
+      } catch (e) {
+        logDiag(`storage-settings-error: ${String(e)}`);
+      }
+    }
+
+    function loadCache() {
+      try {
+        return safeJsonParse(localStorage.getItem(CACHE_KEY) || "{}", {}) || {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveCache() {
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify(state.cache));
+      } catch (e) {
+        logDiag(`storage-cache-error: ${String(e)}`);
+      }
+    }
+
+    function detectProviderFromUrl(url) {
+      try {
+        const u = new URL(url);
+        if (u.hostname === "www.meteociel.fr" && u.pathname === "/temps-reel/obs_villes.php") return "meteociel";
+        if (u.hostname === "www.weatherlink.com" && u.pathname.startsWith("/embeddablePage/show/")) return "weatherlink";
+      } catch {
+        return "";
+      }
+      return "";
+    }
+
+    function kmhToKnots(v) { return v / 1.852; }
+
+    function parseNumberFr(text) {
+      if (typeof text !== "string") return null;
+      const cleaned = text.replace(/\u00a0/g, " ").trim().replace(",", ".");
+      if (!cleaned) return null;
+      const n = Number(cleaned);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function directionFromDegrees(deg) {
+      if (deg === null || !Number.isFinite(deg)) return "Variable";
+      const dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSO", "SO", "OSO", "O", "ONO", "NO", "NNO"];
+      const idx = Math.round((((deg % 360) + 360) % 360) / 22.5) % 16;
+      return dirs[idx];
+    }
+
+    function pickWindClass(roundedKnots) {
+      const t = state.settings.thresholds;
+      if (roundedKnots < t.low) return "wind-low";
+      if (roundedKnots < t.mid) return "wind-mid";
+      if (roundedKnots <= t.high) return "wind-high";
+      return "wind-extreme";
+    }
+
+    function formatParisTime(iso) {
+      if (!iso) return "Heure de mesure inconnue";
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return "Heure de mesure inconnue";
+      return d.toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" });
+    }
+
+    function minutesAgo(iso) {
+      if (!iso) return null;
+      const t = new Date(iso).getTime();
+      if (!Number.isFinite(t)) return null;
+      return Math.max(0, Math.floor((Date.now() - t) / 60000));
+    }
+
+    function makeNormalizedObservation(base) {
+      return {
+        stationId: base.stationId,
+        measuredAt: base.measuredAt || null,
+        fetchedAt: base.fetchedAt || nowIso(),
+        meanWindKnots: base.meanWindKnots ?? null,
+        gustKnots: base.gustKnots ?? null,
+        currentWindKnots: base.currentWindKnots ?? null,
+        dailyMaxGustKnots: base.dailyMaxGustKnots ?? null,
+        dailyMaxGustAt: base.dailyMaxGustAt || null,
+        directionDegrees: base.directionDegrees ?? null,
+        directionLabel: base.directionLabel || "Inconnue",
+        meanPeriod: base.meanPeriod || null,
+        gustPeriod: base.gustPeriod || null,
+        warnings: Array.isArray(base.warnings) ? base.warnings : []
+      };
+    }
+
+    async function fetchViaRelayUrl(targetUrl) {
+      const relayBase = String(state.settings.relayUrl || "").trim();
+      if (!relayBase) {
+        throw new Error("relay-not-configured");
+      }
+      const relay = new URL(relayBase);
+      relay.searchParams.set("url", targetUrl);
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort("timeout"), 12000);
+      try {
+        const res = await fetch(relay.toString(), { signal: controller.signal });
+        const text = await res.text();
+        return {
+          status: res.status,
+          text,
+          contentType: res.headers.get("content-type") || "",
+          finalUrl: res.headers.get("x-relay-final-url") || targetUrl
+        };
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
+    function parseMeteociel(html, station) {
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      let targetTable = null;
+      let timeColumn = -1;
+      let windColumn = -1;
+      let directionColumn = -1;
+      for (const row of doc.querySelectorAll("tr")) {
+        const headers = Array.from(row.cells);
+        let columnOffset = 0;
+        let foundTimeColumn = -1;
+        let foundWindColumn = -1;
+        for (const cell of headers) {
+          const header = cell.textContent.replace(/[\s\u00a0]+/g, "").toLocaleLowerCase("fr-FR");
+          if (header.includes("heurelocale")) foundTimeColumn = columnOffset;
+          if (header.startsWith("vent")) {
+            directionColumn = columnOffset;
+            foundWindColumn = columnOffset + Math.max(0, cell.colSpan - 1);
+          }
+          columnOffset += cell.colSpan || 1;
+        }
+        if (foundTimeColumn >= 0 && foundWindColumn >= 0) {
+          targetTable = row.closest("table");
+          timeColumn = foundTimeColumn;
+          windColumn = foundWindColumn;
+          break;
+        }
+      }
+      if (!targetTable) throw new Error("meteociel-table-not-found");
+
+      const rows = Array.from(targetTable.querySelectorAll("tr"));
+      let best = null;
+      for (const tr of rows) {
+        const tds = Array.from(tr.querySelectorAll("td"));
+        if (tds.length <= Math.max(timeColumn, windColumn)) continue;
+        const localHour = (tds[timeColumn].textContent || "").trim();
+        const windCell = (tds[windColumn].textContent || "").replace(/\u00a0/g, " ").trim();
+        const directionImage = tds[directionColumn]?.querySelector("img[onmouseover]");
+        const tooltip = directionImage?.getAttribute("onmouseover") || "";
+        const directionMatch = tooltip.match(/Direction\s*:\s*<\/i>\s*([^<]+)\s*<small>\s*\((\d{1,3})\s*(?:°|&deg;|º)\s*\)/i);
+        const directionTextMatch = tooltip.match(/Direction\s*:\s*<\/i>\s*([^<]+)/i);
+        if (!/^\d{1,2}h\d{2}$/.test(localHour)) continue;
+        if (!windCell) continue;
+
+        const m = windCell.match(/([0-9]+(?:[.,][0-9]+)?)\s*km\/h(?:\s*\(([0-9]+(?:[.,][0-9]+)?)\s*km\/h\))?/i);
+        if (!m) continue;
+
+        const meanKmh = parseNumberFr(m[1]);
+        const gustKmh = parseNumberFr(m[2] || "");
+        if (meanKmh === null && gustKmh === null) continue;
+
+        best = {
+          hourText: localHour,
+          meanKmh,
+          gustKmh,
+          directionDegrees: directionMatch ? Number(directionMatch[2]) % 360 : null,
+          directionLabel: directionMatch
+            ? directionFromDegrees(Number(directionMatch[2]))
+            : directionTextMatch && /variable/i.test(directionTextMatch[1])
+              ? "Variable"
+              : "Inconnue"
+        };
+        break;
+      }
+
+      if (!best) throw new Error("meteociel-no-filled-wind-row");
+
+      const measuredAt = inferMeasuredAtFromLocalHour(best.hourText);
+      const meanWindKnots = best.meanKmh === null ? null : kmhToKnots(best.meanKmh);
+      const gustKnots = best.gustKmh === null ? null : kmhToKnots(best.gustKmh);
+
+      return makeNormalizedObservation({
+        stationId: station.id,
+        measuredAt,
+        meanWindKnots,
+        gustKnots,
+        directionDegrees: best.directionDegrees,
+        directionLabel: best.directionLabel,
+        gustPeriod: "10min",
+        warnings: best.directionLabel === "Inconnue" ? ["Direction non extraite sur cette observation"] : []
+      });
+    }
+
+    function inferMeasuredAtFromLocalHour(hhmm) {
+      const m = hhmm.match(/^(\d{1,2})h(\d{2})$/);
+      if (!m) return null;
+      const h = Number(m[1]);
+      const min = Number(m[2]);
+      if (!Number.isFinite(h) || !Number.isFinite(min)) return null;
+
+      const now = new Date();
+      const parisParts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Europe/Paris",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      }).formatToParts(now);
+      const partMap = Object.fromEntries(parisParts.map((p) => [p.type, p.value]));
+      const y = Number(partMap.year);
+      const mo = Number(partMap.month);
+      const d = Number(partMap.day);
+
+      const candidate = new Date(Date.UTC(y, mo - 1, d, h - 1, min));
+      // approximation CET/CEST: ajustement de fuseau non garanti a 100% sans API source explicite
+      if (candidate.getTime() > Date.now() + 5 * 60000) {
+        candidate.setUTCDate(candidate.getUTCDate() - 1);
+      }
+      return candidate.toISOString();
+    }
+
+    function extractWeatherlinkToken(html) {
+      const match = html.match(/wl\._deviceUrlToken\s*=\s*["']([a-f0-9]{32})["']/i);
+      if (!match) throw new Error("weatherlink-embed-token-not-found");
+      return match[1];
+    }
+
+    function weatherlinkValue(data, name) {
+      if (!Array.isArray(data.currConditionValues)) return null;
+      const item = data.currConditionValues.find((value) => value && value.sensorDataName === name);
+      if (!item || item.reportedValue === null || item.reportedValue === undefined) return null;
+      if (String(item.unitLabel || "").toLowerCase() !== "knots" && name !== "Wind Direction") return null;
+      return Number.isFinite(Number(item.reportedValue)) ? Number(item.reportedValue) : null;
+    }
+
+    function parseWeatherlinkData(data, station) {
+      const lastReceived = Number(data.lastReceived);
+      const measuredAt = Number.isFinite(lastReceived) && lastReceived > 0
+        ? new Date(lastReceived).toISOString()
+        : null;
+      const warnings = [];
+      let meanWindKnots = null;
+      let gustKnots = null;
+      let currentWindKnots = null;
+      let dailyMaxGustKnots = null;
+      let dailyMaxGustAt = null;
+      let directionDegrees = null;
+      let meanPeriod = null;
+      let gustPeriod = null;
+
+      if (Array.isArray(data.currConditionValues)) {
+        meanWindKnots = weatherlinkValue(data, "10 Min Avg Wind Speed");
+        gustKnots = weatherlinkValue(data, "10 Min High Wind Speed");
+        directionDegrees = weatherlinkValue(data, "Wind Direction");
+        if (meanWindKnots !== null) meanPeriod = "10 min";
+        if (gustKnots !== null) gustPeriod = "10 min";
+        if (meanWindKnots === null) warnings.push("Moyenne sur 10 min indisponible");
+        if (gustKnots === null) warnings.push("Maximum sur 10 min indisponible");
+      } else {
+        if (String(data.windUnits || "").toLowerCase() === "knots" && Number.isFinite(Number(data.wind))) {
+          currentWindKnots = Number(data.wind);
+        }
+        if (String(data.windUnits || "").toLowerCase() === "knots" && Number.isFinite(Number(data.gust))) {
+          dailyMaxGustKnots = Number(data.gust);
+        }
+        const gustAt = Number(data.gustAt);
+        if (Number.isFinite(gustAt) && gustAt > 0) dailyMaxGustAt = new Date(gustAt).toISOString();
+        warnings.push("Periode de mesure non precisee");
+        directionDegrees = Number.isFinite(Number(data.windDirection)) ? Number(data.windDirection) : null;
+      }
+
+      if (!measuredAt) warnings.push("Horodatage source indisponible");
+      if (directionDegrees === null) warnings.push("Direction indisponible");
+
+      return makeNormalizedObservation({
+        stationId: station.id,
+        measuredAt,
+        meanWindKnots,
+        gustKnots,
+        currentWindKnots,
+        dailyMaxGustKnots,
+        dailyMaxGustAt,
+        directionDegrees,
+        directionLabel: directionDegrees === null ? "Inconnue" : directionFromDegrees(directionDegrees),
+        meanPeriod,
+        gustPeriod,
+        warnings
+      });
+    }
+
+    async function fetchWeatherlink(station) {
+      const page = await fetchViaRelayUrl(station.url);
+      if (page.status < 200 || page.status >= 300) return page;
+      const token = extractWeatherlinkToken(page.text);
+      const pageUrl = new URL(station.url);
+      const endpointName = pageUrl.pathname.endsWith("/summary") ? "summaryData" : "getData";
+      const endpoint = `https://www.weatherlink.com/embeddablePage/${endpointName}/${token}`;
+      const dataResponse = await fetchViaRelayUrl(endpoint);
+      if (dataResponse.status < 200 || dataResponse.status >= 300) return dataResponse;
+      const data = safeJsonParse(dataResponse.text, null);
+      if (!data || typeof data !== "object") throw new Error("weatherlink-invalid-json");
+      return { ...dataResponse, observation: parseWeatherlinkData(data, station) };
+    }
+
+    async function refreshStation(station) {
+      if (state.refreshingStationIds.has(station.id)) return;
+      state.refreshingStationIds.add(station.id);
+      const started = nowIso();
+      const entry = state.cache[station.id] || { stationId: station.id };
+      entry.lastAttempt = started;
+      entry.lastAttemptStatus = "running";
+      state.cache[station.id] = entry;
+      render();
+
+      try {
+        const fetched = station.provider === "weatherlink"
+          ? await fetchWeatherlink(station)
+          : await fetchViaRelayUrl(station.url);
+        entry.lastHttpStatus = fetched.status;
+        if (fetched.status === 429) {
+          entry.lastAttemptStatus = "error";
+          entry.lastError = "HTTP 429 - limitation";
+          return;
+        }
+        if (fetched.status < 200 || fetched.status >= 300) {
+          entry.lastAttemptStatus = "error";
+          entry.lastError = `HTTP ${fetched.status}`;
+          return;
+        }
+
+        let obs;
+        if (station.provider === "meteociel") {
+          obs = parseMeteociel(fetched.text, station);
+        } else if (station.provider === "weatherlink") {
+          obs = fetched.observation;
+        } else {
+          throw new Error("provider-not-supported");
+        }
+
+        obs.fetchedAt = nowIso();
+        entry.lastSuccessObservation = obs;
+        entry.qualityWarnings = obs.warnings;
+        entry.lastAttemptStatus = "ok";
+        entry.lastError = "";
+        entry.adapterVersion = APP_VERSION;
+      } catch (e) {
+        entry.lastAttemptStatus = "error";
+        entry.lastError = String(e && e.message ? e.message : e);
+      } finally {
+        entry.lastAttemptEnded = nowIso();
+        state.refreshingStationIds.delete(station.id);
+        saveCache();
+        render();
+      }
+    }
+
+    async function refreshAll() {
+      if (state.inFlight) return;
+      state.inFlight = true;
+      state.lastRefreshStartedAt = nowIso();
+      render();
+
+      const enabled = state.settings.stations.filter((s) => s.enabled);
+      if (!enabled.length) {
+        state.inFlight = false;
+        state.lastRefreshEndedAt = nowIso();
+        render();
+        return;
+      }
+
+      await Promise.all(enabled.map((s) => refreshStation(s)));
+      state.inFlight = false;
+      state.lastRefreshEndedAt = nowIso();
+      render();
+    }
+
+    function render() {
+      const thresholds = state.settings.thresholds;
+      document.getElementById("legendLowText").textContent = `Moins de ${thresholds.low} nd`;
+      document.getElementById("legendMidText").textContent = `${thresholds.low} à moins de ${thresholds.mid} nd`;
+      document.getElementById("legendHighText").textContent = `${thresholds.mid} à ${thresholds.high} nd`;
+      document.getElementById("legendExtremeText").textContent = `Plus de ${thresholds.high} nd`;
+
+      const cards = document.getElementById("cards");
+      cards.innerHTML = "";
+
+      const enabled = state.settings.stations.filter((s) => s.enabled);
+      if (!enabled.length) {
+        const empty = document.createElement("div");
+        empty.className = "card";
+        empty.textContent = "Aucune station active.";
+        cards.appendChild(empty);
+      }
+
+      for (const station of state.settings.stations) {
+        if (!station.enabled) continue;
+        const c = state.cache[station.id] || {};
+        const obs = c.lastSuccessObservation || null;
+        const staleMin = obs ? minutesAgo(obs.measuredAt) : null;
+        const isOld = staleMin !== null && staleMin > state.settings.staleMinutes;
+
+        const meanRounded = obs && obs.meanWindKnots !== null ? Math.round(obs.meanWindKnots) : null;
+        const gustRounded = obs && obs.gustKnots !== null ? Math.round(obs.gustKnots) : null;
+
+        let stateText = "Indisponible";
+        let stateClass = "state-warn";
+        if (c.lastAttemptStatus === "running") { stateText = "Actualisation en cours"; stateClass = "state-warn"; }
+        else if (c.lastAttemptStatus === "ok") {
+          const currentSourceComplete = obs && obs.currentWindKnots !== null
+            && obs.directionDegrees !== null && obs.measuredAt !== null;
+          const incomplete = obs && Array.isArray(obs.warnings) && obs.warnings.length > 0
+            && !currentSourceComplete;
+          stateText = isOld ? "Mesure ancienne" : incomplete ? "Données incomplètes" : "A jour";
+          stateClass = isOld || incomplete ? "state-warn" : "state-ok";
+        }
+        else if (c.lastAttemptStatus === "error") { stateText = "Actualisation echouee"; stateClass = "state-error"; }
+
+        const card = document.createElement("article");
+        card.className = "card";
+
+        const head = document.createElement("div");
+        head.className = "card-head";
+        const left = document.createElement("div");
+        const nameBtn = document.createElement("button");
+        nameBtn.type = "button";
+        nameBtn.className = "name-link";
+        nameBtn.textContent = station.name;
+        nameBtn.addEventListener("click", () => window.open(station.url, "_blank", "noopener"));
+        const primaryWind = obs && obs.meanWindKnots !== null
+          ? obs.meanWindKnots
+          : obs && obs.currentWindKnots !== null
+            ? obs.currentWindKnots
+            : obs && obs.gustKnots !== null
+              ? obs.gustKnots
+              : null;
+        const windMark = document.createElement("span");
+        windMark.className = `station-wind-mark ${primaryWind === null ? "wind-unknown" : pickWindClass(Math.round(primaryWind))}`;
+        windMark.setAttribute("aria-hidden", "true");
+        windMark.title = primaryWind === null
+          ? "Niveau de vent inconnu"
+          : `Niveau de vent: ${Math.round(primaryWind)} nd`;
+        const nameRow = document.createElement("div");
+        nameRow.className = "station-name-row";
+        nameRow.append(windMark, nameBtn);
+        const provider = document.createElement("div");
+        provider.className = "provider";
+        provider.textContent = station.provider;
+        left.append(nameRow, provider);
+        const actions = document.createElement("div");
+        actions.className = "card-actions";
+        const right = document.createElement("div");
+        right.className = `chip ${stateClass}`;
+        right.textContent = stateText;
+        const refreshStationButton = document.createElement("button");
+        refreshStationButton.type = "button";
+        refreshStationButton.className = "refresh-station";
+        refreshStationButton.textContent = "↻";
+        refreshStationButton.title = `Actualiser ${station.name}`;
+        refreshStationButton.setAttribute("aria-label", `Actualiser ${station.name}`);
+        refreshStationButton.disabled = state.refreshingStationIds.has(station.id);
+        refreshStationButton.addEventListener("click", () => refreshStation(station));
+        actions.append(right, refreshStationButton);
+        head.append(left, actions);
+
+        const lineMain = document.createElement("div");
+        lineMain.className = "line-main";
+        const currentOnly = Boolean(obs && obs.currentWindKnots !== null
+          && obs.meanWindKnots === null && obs.gustKnots === null);
+        const mean = document.createElement("span");
+        mean.className = meanRounded === null ? "" : pickWindClass(meanRounded);
+        mean.textContent = `Moyen ${meanRounded === null ? "-" : meanRounded + " nd"}`;
+        const gust = document.createElement("span");
+        gust.className = gustRounded === null ? "" : pickWindClass(gustRounded);
+        gust.textContent = `Raf. ${gustRounded === null ? "-" : gustRounded + " nd"}`;
+        const dir = document.createElement("span");
+        if (!obs) {
+          dir.textContent = "Dir. -";
+        } else {
+          dir.textContent = `${obs.directionLabel || "Variable"}${obs.directionDegrees === null ? "" : " " + Math.round(obs.directionDegrees) + "deg"}`;
+        }
+        if (currentOnly) {
+          const measured = document.createElement("span");
+          measured.className = pickWindClass(Math.round(obs.currentWindKnots));
+          measured.textContent = `Vent mesuré ${Math.round(obs.currentWindKnots)} nd`;
+          lineMain.append(measured, dir);
+        } else {
+          lineMain.append(mean, gust, dir);
+        }
+
+        const lineSub = document.createElement("div");
+        lineSub.className = "line-sub";
+        const h = obs ? formatParisTime(obs.measuredAt) : "Heure de mesure inconnue";
+        const ago = staleMin === null ? "anciennete inconnue" : `il y a ${staleMin} min`;
+        lineSub.textContent = `${h} - ${ago}`;
+
+        const lineErr = document.createElement("div");
+        lineErr.className = "line-sub";
+        const warnings = obs && Array.isArray(obs.warnings) ? obs.warnings : [];
+        lineErr.textContent = [
+          c.lastError ? `Derniere erreur: ${c.lastError}` : "",
+          ...warnings
+        ].filter(Boolean).join(" · ");
+
+        card.append(head, lineMain, lineSub, lineErr);
+        cards.appendChild(card);
+      }
+
+      const gs = document.getElementById("globalStatus");
+      if (state.inFlight) {
+        gs.textContent = "Actualisation en cours...";
+      } else if (!navigator.onLine) {
+        gs.textContent = "Hors connexion.";
+      } else if (state.lastRefreshEndedAt) {
+        gs.textContent = `Derniere actualisation: ${new Date(state.lastRefreshEndedAt).toLocaleTimeString("fr-FR", { hour12: false })}`;
+      } else {
+        gs.textContent = "Pret.";
+      }
+
+      document.getElementById("refreshBtn").disabled = state.inFlight;
+    }
+
+    function validateThresholds(t) {
+      if (!(Number.isFinite(t.low) && Number.isFinite(t.mid) && Number.isFinite(t.high))) return "Seuils invalides";
+      if (!(t.low < t.mid && t.mid <= t.high)) return "Ordre requis: low < mid <= high";
+      return "";
+    }
+
+    function openAdmin() {
+      const d = document.getElementById("adminDialog");
+      document.getElementById("relayUrl").value = state.settings.relayUrl || "";
+      document.getElementById("staleMinutes").value = state.settings.staleMinutes;
+      document.getElementById("thLow").value = state.settings.thresholds.low;
+      document.getElementById("thMid").value = state.settings.thresholds.mid;
+      document.getElementById("thHigh").value = state.settings.thresholds.high;
+      renderAdminStations();
+      d.showModal();
+    }
+
+    function renderAdminStations() {
+      const root = document.getElementById("stationAdminList");
+      root.innerHTML = "";
+      state.settings.stations.forEach((st, idx) => {
+        const box = document.createElement("div");
+        box.className = "admin-station";
+
+        const name = document.createElement("input");
+        name.value = st.name;
+        name.addEventListener("input", () => { st.name = name.value; });
+
+        const url = document.createElement("input");
+        url.value = st.url;
+        url.addEventListener("input", () => {
+          st.url = url.value;
+          st.provider = detectProviderFromUrl(st.url) || st.provider;
+        });
+
+        const row = document.createElement("div");
+        row.className = "row";
+
+        const en = document.createElement("button");
+        en.type = "button";
+        en.textContent = st.enabled ? "Desactiver" : "Activer";
+        en.addEventListener("click", () => { st.enabled = !st.enabled; renderAdminStations(); });
+
+        const up = document.createElement("button");
+        up.type = "button";
+        up.textContent = "Monter";
+        up.disabled = idx === 0;
+        up.addEventListener("click", () => {
+          const a = state.settings.stations;
+          [a[idx - 1], a[idx]] = [a[idx], a[idx - 1]];
+          renderAdminStations();
+        });
+
+        const down = document.createElement("button");
+        down.type = "button";
+        down.textContent = "Descendre";
+        down.disabled = idx === state.settings.stations.length - 1;
+        down.addEventListener("click", () => {
+          const a = state.settings.stations;
+          [a[idx], a[idx + 1]] = [a[idx + 1], a[idx]];
+          renderAdminStations();
+        });
+
+        const del = document.createElement("button");
+        del.type = "button";
+        del.textContent = "Supprimer";
+        del.addEventListener("click", () => {
+          if (!confirm(`Supprimer ${st.name} ?`)) return;
+          state.settings.stations = state.settings.stations.filter((s) => s.id !== st.id);
+          renderAdminStations();
+        });
+
+        row.append(en, up, down, del);
+
+        const p = document.createElement("div");
+        p.className = "hint";
+        p.textContent = `Fournisseur: ${st.provider || "inconnu"}`;
+
+        box.append(name, url, p, row);
+        root.appendChild(box);
+      });
+    }
+
+    function adminSave() {
+      const relayUrl = document.getElementById("relayUrl").value.trim();
+      const staleMinutes = Number(document.getElementById("staleMinutes").value);
+      const low = Number(document.getElementById("thLow").value);
+      const mid = Number(document.getElementById("thMid").value);
+      const high = Number(document.getElementById("thHigh").value);
+
+      if (!relayUrl) {
+        alert("Le relais est requis pour ce mode serverless.");
+        return;
+      }
+      try { new URL(relayUrl); } catch {
+        alert("URL du relais invalide.");
+        return;
+      }
+
+      const thErr = validateThresholds({ low, mid, high });
+      if (thErr) { alert(thErr); return; }
+      if (!(Number.isFinite(staleMinutes) && staleMinutes > 0)) {
+        alert("Seuil anciennete invalide");
+        return;
+      }
+
+      for (const st of state.settings.stations) {
+        st.provider = detectProviderFromUrl(st.url);
+        if (!st.provider) {
+          alert(`Station non supportee: ${st.name}`);
+          return;
+        }
+      }
+
+      state.settings.relayUrl = relayUrl;
+      state.settings.staleMinutes = Math.round(staleMinutes);
+      state.settings.thresholds = { low: Math.round(low), mid: Math.round(mid), high: Math.round(high) };
+
+      saveSettings();
+      render();
+      document.getElementById("adminDialog").close();
+    }
+
+    function resetSettingsToDefaults() {
+      if (!confirm("Remplacer la configuration locale par les réglages et stations par défaut ? Le cache des observations sera conservé.")) return;
+
+      state.settings = structuredClone(DEFAULT_SETTINGS);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state.settings));
+        localStorage.setItem(DEFAULT_STATION_MIGRATION_KEY, "1");
+      } catch (error) {
+        logDiag(`storage-settings-error: ${String(error)}`);
+        alert("Configuration réinitialisée pour cette session, mais le navigateur n'a pas permis de l'enregistrer.");
+      }
+      renderAdminStations();
+      render();
+    }
+
+    function addStationFromAdmin() {
+      const name = document.getElementById("newName").value.trim();
+      const url = document.getElementById("newUrl").value.trim();
+      if (!name || !url) { alert("Nom et URL requis"); return; }
+      const provider = detectProviderFromUrl(url);
+      if (!provider) {
+        alert("Fournisseur inconnu. Seuls Meteociel et Weatherlink embeddable sont supportes.");
+        return;
+      }
+      state.settings.stations.push({
+        id: `st_custom_${Date.now()}`,
+        name,
+        provider,
+        url,
+        enabled: true
+      });
+      document.getElementById("newName").value = "";
+      document.getElementById("newUrl").value = "";
+      renderAdminStations();
+    }
+
+    function exportSettingsJson() {
+      const payload = {
+        version: 1,
+        exportedAt: nowIso(),
+        settings: state.settings
+      };
+      const txt = JSON.stringify(payload, null, 2);
+      document.getElementById("exportBox").value = txt;
+      return txt;
+    }
+
+    function downloadExport() {
+      const txt = exportSettingsJson();
+      const blob = new Blob([txt], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "windsup-config.json";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    function importSettingsJson() {
+      const txt = document.getElementById("exportBox").value;
+      const parsed = safeJsonParse(txt, null);
+      if (!parsed || typeof parsed !== "object" || !parsed.settings) {
+        alert("JSON invalide");
+        return;
+      }
+      const merged = mergeSettings(parsed.settings);
+      if (!confirm("Importer remplace la configuration actuelle. Continuer ?")) return;
+      state.settings = merged;
+      saveSettings();
+      markDefaultStationMigrationComplete();
+      renderAdminStations();
+      render();
+      alert("Import termine");
+    }
+
+    function bindEvents() {
+      document.getElementById("refreshBtn").addEventListener("click", refreshAll);
+      document.getElementById("forecastMapBtn").addEventListener("click", () => {
+        window.open("https://www.windguru.cz/map/?lat=43.58639270482092&lon=7.162769348694837&zoom=11.169442469493992", "_blank", "noopener,noreferrer");
+      });
+      document.getElementById("adminBtn").addEventListener("click", openAdmin);
+      document.getElementById("saveAdminBtn").addEventListener("click", adminSave);
+      document.getElementById("resetSettingsBtn").addEventListener("click", resetSettingsToDefaults);
+      document.getElementById("addStationBtn").addEventListener("click", addStationFromAdmin);
+      document.getElementById("exportBtn").addEventListener("click", exportSettingsJson);
+      document.getElementById("downloadBtn").addEventListener("click", downloadExport);
+      document.getElementById("importBtn").addEventListener("click", importSettingsJson);
+
+      window.addEventListener("online", render);
+      window.addEventListener("offline", render);
+      setInterval(render, 30_000);
+    }
+
+    function bootstrap() {
+      state.settings = loadSettings();
+      state.cache = loadCache();
+      bindEvents();
+      render();
+      logDiag(`app-version:${APP_VERSION}`);
+      logDiag(`initial-stations:${state.settings.stations.length}`);
+      refreshAll();
+    }
+
+    bootstrap();
+  </script>
+</body>
+</html>
