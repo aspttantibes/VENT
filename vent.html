@@ -145,7 +145,23 @@
       display: flex;
       align-items: center;
       gap: 6px;
+      margin-left: auto;
     }
+    .webcam-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 38px;
+      width: 38px;
+      height: 38px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--brand);
+      background: var(--surface);
+    }
+    .webcam-link:hover { background: var(--bg); }
+    .webcam-link:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+    .webcam-link svg { width: 20px; height: 20px; }
     .statusbar {
       font-size: 0.86rem;
       color: var(--muted);
@@ -164,6 +180,7 @@
     }
     .card-head {
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
       align-items: start;
       gap: 8px;
@@ -361,6 +378,10 @@
         <label for="newUrl">Nouvelle station - URL</label>
         <input id="newUrl" placeholder="https://...">
       </div>
+      <div class="field">
+        <label for="newWebcamUrl">Nouvelle station - URL de la webcam (facultatif)</label>
+        <input id="newWebcamUrl" type="url" placeholder="https://...">
+      </div>
       <div class="row">
         <button type="button" id="addStationBtn">Ajouter station</button>
       </div>
@@ -414,6 +435,7 @@
           name: "Phare Antibes",
           provider: "meteociel",
           url: "https://www.meteociel.fr/temps-reel/obs_villes.php?affint=1&code2=7688",
+          webcamUrl: "https://pv.viewsurf.com/1214/Port-de-Golfe-Juan-Video-Panoramique?i=NTIzODp1bmRlZmluZWQ",
           enabled: true
         },
         {
@@ -421,12 +443,14 @@
           name: "Palm Beach Cannes",
           provider: "weatherlink",
           url: "https://www.weatherlink.com/embeddablePage/show/9b7cc9ea56e1473ea49bc089e3f9e5dd/slim",
+          webcamUrl: "https://m.youtube.com/watch?v=8cff6yAO9bw",
           enabled: true
         },        {
           id: "st_dramont",
           name: "Dramont Agay",
           provider: "meteociel",
           url: "https://www.meteociel.fr/temps-reel/obs_villes.php?affint=1&code2=7681",
+          webcamUrl: "https://broadcast.viewsurf.com/314f0939a941587980d1e1648329d422/capture/16986/playEmbed?enablejsapi=1&api=1&player_id=sw-1&enablejsapi=1&api=1",
           enabled: false
         },
         {
@@ -448,6 +472,7 @@
           name: "Aéroport Hyères (La Londe)",
           provider: "meteociel",
           url: "https://www.meteociel.fr/temps-reel/obs_villes.php?affint=1&code2=7667",
+          webcamUrl: "https://www.vision-environnement.com/live/player/hyeres20.php",
           enabled: true
         },
         {
@@ -455,6 +480,7 @@
           name: "Ile du Levant (Almanarre)",
           provider: "meteociel",
           url: "https://www.meteociel.fr/temps-reel/obs_villes.php?affint=1&code2=7678",
+          webcamUrl: "https://www.vision-environnement.com/live/player/hyereskite.php",
           enabled: true
         },
         {
@@ -536,6 +562,16 @@
       }
     }
 
+    function normalizeWebcamUrl(value) {
+      if (typeof value !== "string" || !value.trim()) return "";
+      try {
+        const url = new URL(value.trim());
+        return ["https:", "http:"].includes(url.protocol) ? url.href : "";
+      } catch {
+        return "";
+      }
+    }
+
     function mergeSettings(input) {
       const out = structuredClone(DEFAULT_SETTINGS);
       if (typeof input.relayUrl === "string") out.relayUrl = input.relayUrl.trim();
@@ -554,6 +590,9 @@
             name: typeof s.name === "string" ? s.name.slice(0, 80) : "Station",
             provider: detectProviderFromUrl(String(s.url || "")),
             url: String(s.url || "").trim(),
+            webcamUrl: normalizeWebcamUrl(s.webcamUrl === undefined
+              ? DEFAULT_SETTINGS.stations.find((station) => station.id === s.id)?.webcamUrl
+              : s.webcamUrl),
             enabled: s.enabled !== false
           }))
           .filter((s) => s.provider);
@@ -1016,6 +1055,18 @@
         left.append(nameRow, provider);
         const actions = document.createElement("div");
         actions.className = "card-actions";
+        const webcamUrl = normalizeWebcamUrl(station.webcamUrl);
+        if (webcamUrl) {
+          const webcamLink = document.createElement("a");
+          webcamLink.className = "webcam-link";
+          webcamLink.href = webcamUrl;
+          webcamLink.target = "_blank";
+          webcamLink.rel = "noopener noreferrer";
+          webcamLink.title = `Webcam : ${station.name}`;
+          webcamLink.setAttribute("aria-label", `Ouvrir la webcam de ${station.name} (nouvel onglet)`);
+          webcamLink.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="10" r="8"/><circle cx="12" cy="10" r="3"/><path d="M7 16 4 22h16l-3-6"/></svg>';
+          actions.appendChild(webcamLink);
+        }
         const right = document.createElement("div");
         right.className = `chip ${stateClass}`;
         right.textContent = stateText;
@@ -1127,6 +1178,19 @@
           st.provider = detectProviderFromUrl(st.url) || st.provider;
         });
 
+        const webcamField = document.createElement("div");
+        webcamField.className = "field";
+        const webcamLabel = document.createElement("label");
+        webcamLabel.htmlFor = `webcamUrl_${idx}`;
+        webcamLabel.textContent = "URL de la webcam (facultatif)";
+        const webcam = document.createElement("input");
+        webcam.id = webcamLabel.htmlFor;
+        webcam.type = "url";
+        webcam.placeholder = "https://...";
+        webcam.value = st.webcamUrl || "";
+        webcam.addEventListener("input", () => { st.webcamUrl = webcam.value; });
+        webcamField.append(webcamLabel, webcam);
+
         const row = document.createElement("div");
         row.className = "row";
 
@@ -1170,7 +1234,7 @@
         p.className = "hint";
         p.textContent = `Fournisseur: ${st.provider || "inconnu"}`;
 
-        box.append(name, url, p, row);
+        box.append(name, url, webcamField, p, row);
         root.appendChild(box);
       });
     }
@@ -1204,6 +1268,11 @@
           alert(`Station non supportee: ${st.name}`);
           return;
         }
+        if (st.webcamUrl && st.webcamUrl.trim() && !normalizeWebcamUrl(st.webcamUrl)) {
+          alert(`URL de webcam invalide pour ${st.name} : adresse HTTP ou HTTPS requise.`);
+          return;
+        }
+        st.webcamUrl = normalizeWebcamUrl(st.webcamUrl);
       }
 
       state.settings.relayUrl = relayUrl;
@@ -1233,7 +1302,13 @@
     function addStationFromAdmin() {
       const name = document.getElementById("newName").value.trim();
       const url = document.getElementById("newUrl").value.trim();
+      const webcamInput = document.getElementById("newWebcamUrl").value.trim();
       if (!name || !url) { alert("Nom et URL requis"); return; }
+      const webcamUrl = normalizeWebcamUrl(webcamInput);
+      if (webcamInput && !webcamUrl) {
+        alert("URL de webcam invalide : adresse HTTP ou HTTPS requise.");
+        return;
+      }
       const provider = detectProviderFromUrl(url);
       if (!provider) {
         alert("Fournisseur inconnu. Seuls Meteociel et Weatherlink embeddable sont supportes.");
@@ -1244,10 +1319,12 @@
         name,
         provider,
         url,
+        webcamUrl,
         enabled: true
       });
       document.getElementById("newName").value = "";
       document.getElementById("newUrl").value = "";
+      document.getElementById("newWebcamUrl").value = "";
       renderAdminStations();
     }
 
