@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Speedy - favoris</title>
+  <style>
+    :root {
+      --bg: #f2f4ef;
+      --surface: #fff;
+      --ink: #1a1f1a;
+      --muted: #5a655c;
+      --brand: #1f6f5d;
+      --border: #d8ddd5;
+      --danger: #b3362f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: var(--ink);
+      background: radial-gradient(circle at 20% 20%, #fbfcfa, var(--bg));
+      min-height: 100vh;
+      letter-spacing: 0;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 12px 12px 28px; }
+    header { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+    h1 { margin: 0; font-size: 1.2rem; }
+    h2 { margin: 0; font-size: 1.08rem; }
+    nav { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-left: auto; }
+    a { color: #124f90; }
+    button {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font: inherit;
+      min-height: 44px;
+      cursor: pointer;
+    }
+    button.primary { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 600; }
+    button:disabled { opacity: 0.45; cursor: default; }
+    :focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+    .status { color: var(--muted); font-size: 0.9rem; overflow-wrap: anywhere; }
+    .error { color: var(--danger); }
+    #favorites { list-style: none; padding: 0; margin: 0; }
+    #favorites li { border-bottom: 1px solid var(--border); }
+    .favorite {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 60px;
+      padding: 12px 8px;
+      text-decoration: none;
+      font-weight: 600;
+      overflow-wrap: anywhere;
+    }
+    .favorite:hover { background: var(--surface); text-decoration: underline; }
+    .favorite span:last-child { min-width: 0; }
+    .favicon { display: grid; place-items: center; width: 24px; height: 24px; flex: 0 0 24px; color: var(--muted); }
+    .favicon img { width: 24px; height: 24px; object-fit: contain; }
+    dialog { width: min(680px, calc(100% - 24px)); max-height: calc(100dvh - 24px); padding: 0; border: 1px solid var(--border); border-radius: 14px; }
+    dialog::backdrop { background: rgb(26 31 26 / 35%); }
+    .dlg { display: grid; gap: 14px; padding: 16px; }
+    #adminList { display: grid; gap: 12px; }
+    .admin-favorite { margin: 0; padding: 12px; border: 1px solid var(--border); border-radius: 8px; min-width: 0; display: grid; gap: 10px; }
+    legend { padding: 0 4px; font-size: 0.9rem; color: var(--muted); }
+    .field { display: grid; gap: 6px; min-width: 0; }
+    label { font-size: 0.9rem; }
+    input { width: 100%; min-width: 0; border: 1px solid var(--border); border-radius: 8px; padding: 10px; font: inherit; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .icon-button { width: 44px; height: 44px; padding: 0; font-size: 1.3rem; }
+    .danger { color: var(--danger); }
+    .actions { position: sticky; bottom: 0; background: var(--surface); padding-top: 10px; border-top: 1px solid var(--border); }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Speedy - favoris</h1>
+      <nav aria-label="Navigation principale">
+        <a href="vent.html">Vent</a>
+        <button type="button" id="adminBtn">Administration</button>
+      </nav>
+    </header>
+    <main>
+      <p id="status" class="status" role="status"></p>
+      <p id="empty" class="status">Aucun favori.</p>
+      <ul id="favorites" aria-label="Favoris"></ul>
+    </main>
+  </div>
+
+  <dialog id="adminDialog" aria-labelledby="adminTitle">
+    <form id="adminForm" class="dlg">
+      <h2 id="adminTitle">Administration des favoris</h2>
+      <div id="adminList"></div>
+      <div><button type="button" id="addBtn">Ajouter un favori</button></div>
+      <p id="adminStatus" class="status error" role="alert" hidden></p>
+      <div class="row actions">
+        <button type="submit" class="primary">Sauvegarder</button>
+        <button type="button" id="resetBtn" class="danger">R&#233;initialiser les favoris</button>
+        <button type="button" id="cancelBtn">Annuler</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    const STORAGE_KEY = "windsup.favorites.v1";
+    const DEFAULT_FAVORITES = [
+      { name: "Dakhla Lagoon", url: "https://www.windguru.cz/49315" },
+      { name: "Dakhla, ANEMO La Tour d'Eole", url: "https://www.windguru.cz/station/3227" },
+      { name: "Hourtin plage", url: "https://www.windguru.cz/168" },
+      { name: "Lac d'Hourtin", url: "https://www.windguru.cz/48559" },
+      { name: "Hourtin, Kite Zone School (station)", url: "https://www.windguru.cz/station/3053" },
+      { name: "Kite Zone School - historique Hourtin", url: "https://kitezone-school.com/historique.html" },
+      { name: "Weameter - Lachanau", url: "https://weameter.com/stations/lachanau/windrt/" },
+      { name: "Etang du Ponant", url: "https://www.windguru.cz/501002" },
+      { name: "Sete", url: "https://www.windguru.cz/195" },
+      { name: "Marseillan", url: "https://www.windguru.cz/500980" },
+      { name: "Les Dosses", url: "https://www.windguru.cz/500997" },
+      { name: "Quiberon", url: "https://www.windguru.cz/18" },
+      { name: "Wind Morbihan", url: "https://www.windmorbihan.com/" }
+    ];
+    const dialog = document.getElementById("adminDialog");
+    const form = document.getElementById("adminForm");
+    const status = document.getElementById("status");
+    const adminStatus = document.getElementById("adminStatus");
+    let favorites = loadFavorites();
+    let draft = [];
+
+    function normalizeUrl(value) {
+      const url = new URL(value.trim());
+      if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) {
+        throw new Error("Adresse HTTP/HTTPS requise, sans identifiants.");
+      }
+      return url.href;
+    }
+
+    function loadFavorites() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved === null) return DEFAULT_FAVORITES.map((favorite) => ({ ...favorite }));
+        const parsed = JSON.parse(saved);
+        if (!Array.isArray(parsed)) throw new Error("invalid-data");
+        return parsed.map((favorite) => {
+          if (!favorite || typeof favorite.name !== "string" || !favorite.name.trim()
+            || typeof favorite.url !== "string") throw new Error("invalid-favorite");
+          return { name: favorite.name.trim(), url: normalizeUrl(favorite.url) };
+        });
+      } catch {
+        status.textContent = "Favoris illisibles ou stockage indisponible. Les donnees existantes n'ont pas ete modifiees.";
+        status.classList.add("error");
+        return [];
+      }
+    }
+
+    function render() {
+      const list = document.getElementById("favorites");
+      list.replaceChildren();
+      document.getElementById("empty").hidden = favorites.length > 0;
+      favorites.forEach((favorite) => {
+        const item = document.createElement("li");
+        const link = document.createElement("a");
+        link.className = "favorite";
+        link.href = favorite.url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        const icon = document.createElement("span");
+        icon.className = "favicon";
+        icon.setAttribute("aria-hidden", "true");
+        const image = document.createElement("img");
+        image.alt = "";
+        image.loading = "lazy";
+        image.referrerPolicy = "no-referrer";
+        image.addEventListener("error", () => { icon.textContent = "\u2606"; }, { once: true });
+        image.src = new URL("/favicon.ico", favorite.url).href;
+        icon.append(image);
+        const name = document.createElement("span");
+        name.textContent = favorite.name;
+        link.append(icon, name);
+        item.append(link);
+        list.append(item);
+      });
+    }
+
+    function actionButton(label, symbol, handler) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "icon-button";
+      button.title = label;
+      button.setAttribute("aria-label", label);
+      button.textContent = symbol;
+      button.addEventListener("click", handler);
+      return button;
+    }
+
+    function renderAdmin(focusIndex) {
+      const list = document.getElementById("adminList");
+      list.replaceChildren();
+      draft.forEach((favorite, index) => {
+        const box = document.createElement("fieldset");
+        box.className = "admin-favorite";
+        const legend = document.createElement("legend");
+        legend.textContent = `Favori ${index + 1}`;
+        box.append(legend);
+        for (const [key, caption] of [["name", "Nom"], ["url", "Lien (HTTP/HTTPS)"]]) {
+          const field = document.createElement("div");
+          field.className = "field";
+          const label = document.createElement("label");
+          label.htmlFor = `${key}_${index}`;
+          label.textContent = caption;
+          const input = document.createElement("input");
+          input.id = label.htmlFor;
+          input.type = key === "url" ? "url" : "text";
+          input.required = true;
+          input.value = favorite[key];
+          if (key === "url") input.placeholder = "https://...";
+          input.addEventListener("input", () => {
+            favorite[key] = input.value;
+            input.setCustomValidity("");
+          });
+          field.append(label, input);
+          box.append(field);
+        }
+        const actions = document.createElement("div");
+        actions.className = "row";
+        const up = actionButton("Monter", "\u2191", () => {
+          [draft[index - 1], draft[index]] = [draft[index], draft[index - 1]];
+          renderAdmin(index - 1);
+        });
+        up.disabled = index === 0;
+        const down = actionButton("Descendre", "\u2193", () => {
+          [draft[index], draft[index + 1]] = [draft[index + 1], draft[index]];
+          renderAdmin(index + 1);
+        });
+        down.disabled = index === draft.length - 1;
+        const remove = actionButton("Supprimer", "\u00d7", () => {
+          draft.splice(index, 1);
+          renderAdmin(Math.min(index, draft.length - 1));
+        });
+        remove.classList.add("danger");
+        actions.append(up, down, remove);
+        box.append(actions);
+        list.append(box);
+      });
+      if (focusIndex >= 0) document.getElementById(`name_${focusIndex}`)?.focus();
+    }
+
+    document.getElementById("adminBtn").addEventListener("click", () => {
+      draft = favorites.map((favorite) => ({ ...favorite }));
+      adminStatus.hidden = true;
+      renderAdmin();
+      dialog.showModal();
+    });
+    document.getElementById("addBtn").addEventListener("click", () => {
+      draft.push({ name: "", url: "" });
+      renderAdmin(draft.length - 1);
+    });
+    document.getElementById("cancelBtn").addEventListener("click", () => dialog.close());
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      if (!confirm("Remplacer tous les favoris par ceux du fichier initial ? Cette action sera enregistree immediatement.")) return;
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        adminStatus.textContent = "Reinitialisation impossible : le stockage du navigateur est indisponible.";
+        adminStatus.hidden = false;
+        return;
+      }
+      favorites = DEFAULT_FAVORITES.map((favorite) => ({ ...favorite }));
+      draft = [];
+      render();
+      status.classList.remove("error");
+      status.textContent = "Favoris reinitialises depuis le fichier initial.";
+      dialog.close();
+    });
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const next = [];
+      for (const [index, favorite] of draft.entries()) {
+        const nameInput = document.getElementById(`name_${index}`);
+        const urlInput = document.getElementById(`url_${index}`);
+        if (!favorite.name.trim()) {
+          nameInput.setCustomValidity("Renseignez un nom.");
+          nameInput.reportValidity();
+          return;
+        }
+        try {
+          next.push({ name: favorite.name.trim(), url: normalizeUrl(favorite.url) });
+        } catch {
+          urlInput.setCustomValidity("Renseignez une adresse HTTP/HTTPS valide, sans identifiants.");
+          urlInput.reportValidity();
+          return;
+        }
+      }
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        adminStatus.textContent = "Enregistrement impossible : le stockage du navigateur est indisponible ou plein.";
+        adminStatus.hidden = false;
+        return;
+      }
+      favorites = next;
+      render();
+      status.classList.remove("error");
+      status.textContent = "Favoris sauvegardes.";
+      dialog.close();
+    });
+    render();
+  </script>
+</body>
+</html>
