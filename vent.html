@@ -417,6 +417,8 @@
     const STORAGE_KEY = "windsup.settings.v1";
     const CACHE_KEY = "windsup.cache.v1";
     const DEFAULT_STATION_MIGRATION_KEY = "windsup.default-stations.v1";
+    const NICE_WINDGURU_MIGRATION_KEY = "windsup.nice-windguru.v1";
+    const DAKHLA_WINDGURU_MIGRATION_KEY = "windsup.dakhla-windguru.v1";
     const NEW_DEFAULT_STATION_IDS = [
       "st_frejus_aerodrome",
       "st_hyeres_aeroport",
@@ -434,6 +436,14 @@
           name: "Saint Laurent du Var - Aéroport",
           provider: "meteociel",
           url: "https://www.meteociel.fr/temps-reel/obs_villes.php?affint=1&code2=7690",
+          enabled: true
+        },
+        {
+          id: "st_nice_windguru",
+          windguruUrl: "https://www.windguru.cz/1346635",
+          name: "Nice Aéroport - Windguru",
+          provider: "windguru",
+          url: "https://www.windguru.cz/station/16418",
           enabled: true
         },
         {
@@ -511,6 +521,14 @@
           provider: "meteociel",
           url: "https://www.meteociel.fr/temps-reel/obs_villes.php?affint=1&code2=7666",
           enabled: false
+        },
+        {
+          id: "st_dakhla_windguru",
+          windguruUrl: "https://www.windguru.cz/49315",
+          name: "Dakhla - La Tour d'Eole",
+          provider: "windguru",
+          url: "https://www.windguru.cz/station/3227",
+          enabled: true
         }
       ]
     };
@@ -551,18 +569,37 @@
           return structuredClone(DEFAULT_SETTINGS);
         }
         const settings = mergeSettings(parsed);
-        if (localStorage.getItem(DEFAULT_STATION_MIGRATION_KEY) === "1") return settings;
-
-        const existingIds = new Set(settings.stations.map((station) => station.id));
-        const existingUrls = new Set(settings.stations.map((station) => station.url));
-        for (const id of NEW_DEFAULT_STATION_IDS) {
-          const station = DEFAULT_SETTINGS.stations.find((item) => item.id === id);
-          if (station && !existingIds.has(station.id) && !existingUrls.has(station.url)) {
+        if (localStorage.getItem(NICE_WINDGURU_MIGRATION_KEY) !== "1") {
+          const station = DEFAULT_SETTINGS.stations.find((item) => item.id === "st_nice_windguru");
+          if (!settings.stations.some((item) => item.id === station.id || item.url.replace(/\/$/, "") === station.url)) {
+            const niceIndex = settings.stations.findIndex((item) => item.id === "st_nice");
+            const antibesIndex = settings.stations.findIndex((item) => item.id === "st_antibes");
+            const insertIndex = niceIndex >= 0 ? niceIndex + 1 : antibesIndex >= 0 ? antibesIndex : 0;
+            settings.stations.splice(insertIndex, 0, structuredClone(station));
+          }
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+          localStorage.setItem(NICE_WINDGURU_MIGRATION_KEY, "1");
+        }
+        if (localStorage.getItem(DEFAULT_STATION_MIGRATION_KEY) !== "1") {
+          const existingIds = new Set(settings.stations.map((station) => station.id));
+          const existingUrls = new Set(settings.stations.map((station) => station.url));
+          for (const id of NEW_DEFAULT_STATION_IDS) {
+            const station = DEFAULT_SETTINGS.stations.find((item) => item.id === id);
+            if (station && !existingIds.has(station.id) && !existingUrls.has(station.url)) {
+              settings.stations.push(structuredClone(station));
+            }
+          }
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+          localStorage.setItem(DEFAULT_STATION_MIGRATION_KEY, "1");
+        }
+        if (localStorage.getItem(DAKHLA_WINDGURU_MIGRATION_KEY) !== "1") {
+          const station = DEFAULT_SETTINGS.stations.find((item) => item.id === "st_dakhla_windguru");
+          if (!settings.stations.some((item) => item.id === station.id || item.url.replace(/\/$/, "") === station.url)) {
             settings.stations.push(structuredClone(station));
           }
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+          localStorage.setItem(DAKHLA_WINDGURU_MIGRATION_KEY, "1");
         }
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-        markDefaultStationMigrationComplete();
         return settings;
       } catch {
         return structuredClone(DEFAULT_SETTINGS);
@@ -572,6 +609,8 @@
     function markDefaultStationMigrationComplete() {
       try {
         localStorage.setItem(DEFAULT_STATION_MIGRATION_KEY, "1");
+        localStorage.setItem(NICE_WINDGURU_MIGRATION_KEY, "1");
+        localStorage.setItem(DAKHLA_WINDGURU_MIGRATION_KEY, "1");
       } catch {
         // Storage may be unavailable in file mode; defaults remain usable for this session.
       }
@@ -647,6 +686,7 @@
         const u = new URL(url);
         if (u.hostname === "www.meteociel.fr" && u.pathname === "/temps-reel/obs_villes.php") return "meteociel";
         if (u.hostname === "www.weatherlink.com" && u.pathname.startsWith("/embeddablePage/show/")) return "weatherlink";
+        if (u.protocol === "https:" && u.hostname === "www.windguru.cz" && /^\/station\/\d+\/?$/.test(u.pathname)) return "windguru";
       } catch {
         return "";
       }
@@ -698,6 +738,7 @@
         measuredAt: base.measuredAt || null,
         fetchedAt: base.fetchedAt || nowIso(),
         meanWindKnots: base.meanWindKnots ?? null,
+        minWindKnots: base.minWindKnots ?? null,
         gustKnots: base.gustKnots ?? null,
         currentWindKnots: base.currentWindKnots ?? null,
         dailyMaxGustKnots: base.dailyMaxGustKnots ?? null,
@@ -925,6 +966,53 @@
       return { ...dataResponse, observation: parseWeatherlinkData(data, station) };
     }
 
+    function parseWindguruData(data, station) {
+      if (!data || typeof data !== "object" || Array.isArray(data) || data.return === "error") {
+        throw new Error("windguru-invalid-data");
+      }
+      const numericValue = (value) => {
+        if (typeof value !== "number" && typeof value !== "string") return null;
+        if (typeof value === "string" && !value.trim()) return null;
+        const number = Number(value);
+        return Number.isFinite(number) ? number : null;
+      };
+      const wind = numericValue(data.wind_avg);
+      const maximum = numericValue(data.wind_max);
+      const minimum = numericValue(data.wind_min);
+      const meanWindKnots = wind !== null && wind >= 0 ? wind : null;
+      const minWindKnots = minimum !== null && minimum >= 0 ? minimum : null;
+      const gustKnots = maximum !== null && maximum >= 0 ? maximum : null;
+      if (meanWindKnots === null && gustKnots === null) throw new Error("windguru-wind-unavailable");
+      const direction = numericValue(data.wind_direction);
+      const directionDegrees = direction !== null && direction >= 0 && direction <= 360 ? direction % 360 : null;
+      const timestamp = numericValue(data.unixtime);
+      const date = timestamp !== null && timestamp > 0 ? new Date(timestamp * 1000) : null;
+      const measuredAt = date && Number.isFinite(date.getTime()) ? date.toISOString() : null;
+      const warnings = [];
+      if (!measuredAt) warnings.push("Horodatage source indisponible");
+      if (directionDegrees === null) warnings.push("Direction indisponible");
+      return makeNormalizedObservation({
+        stationId: station.id,
+        measuredAt,
+        meanWindKnots,
+        minWindKnots,
+        gustKnots,
+        directionDegrees,
+        directionLabel: directionDegrees === null ? "Inconnue" : directionFromDegrees(directionDegrees),
+        warnings
+      });
+    }
+
+    async function fetchWindguru(station) {
+      const stationId = new URL(station.url).pathname.match(/^\/station\/(\d+)\/?$/)?.[1];
+      if (!stationId) throw new Error("windguru-invalid-station-url");
+      const endpoint = new URL("https://www.windguru.net/int/iapi.php");
+      endpoint.search = new URLSearchParams({ q: "station_data_current", id_station: stationId, avg_min: "0" }).toString();
+      const response = await fetchViaRelayUrl(endpoint.href);
+      if (response.status < 200 || response.status >= 300) return response;
+      return { ...response, observation: parseWindguruData(safeJsonParse(response.text, null), station) };
+    }
+
     async function refreshStation(station) {
       if (state.refreshingStationIds.has(station.id)) return;
       state.refreshingStationIds.add(station.id);
@@ -938,7 +1026,9 @@
       try {
         const fetched = station.provider === "weatherlink"
           ? await fetchWeatherlink(station)
-          : await fetchViaRelayUrl(station.url);
+          : station.provider === "windguru"
+            ? await fetchWindguru(station)
+            : await fetchViaRelayUrl(station.url);
         entry.lastHttpStatus = fetched.status;
         if (fetched.status === 429) {
           entry.lastAttemptStatus = "error";
@@ -954,7 +1044,7 @@
         let obs;
         if (station.provider === "meteociel") {
           obs = parseMeteociel(fetched.text, station);
-        } else if (station.provider === "weatherlink") {
+        } else if (station.provider === "weatherlink" || station.provider === "windguru") {
           obs = fetched.observation;
         } else {
           throw new Error("provider-not-supported");
@@ -1021,6 +1111,9 @@
         const obs = c.lastSuccessObservation || null;
         const staleMin = obs ? minutesAgo(obs.measuredAt) : null;
         const isOld = staleMin !== null && staleMin > state.settings.staleMinutes;
+        const warnings = (obs && Array.isArray(obs.warnings) ? obs.warnings : [])
+          .filter((warning) => station.provider !== "windguru"
+            || warning !== "Windguru : periode de moyenne et de maximum non precisee par la source");
 
         const meanRounded = obs && obs.meanWindKnots !== null ? Math.round(obs.meanWindKnots) : null;
         const gustRounded = obs && obs.gustKnots !== null ? Math.round(obs.gustKnots) : null;
@@ -1033,8 +1126,9 @@
         else if (c.lastAttemptStatus === "ok") {
           const currentSourceComplete = obs && obs.currentWindKnots !== null
             && obs.directionDegrees !== null && obs.measuredAt !== null;
-          const incomplete = obs && Array.isArray(obs.warnings) && obs.warnings.length > 0
-            && !currentSourceComplete;
+          const incomplete = station.provider === "windguru"
+            ? !obs || staleMin === null
+            : warnings.length > 0 && !currentSourceComplete;
           stateText = isOld ? "Mesure ancienne" : incomplete ? "Données incomplètes" : "A jour";
           stateClass = isOld || incomplete ? "state-warn" : "state-ok";
         }
@@ -1141,6 +1235,13 @@
             lineMain.append(measured, dir);
           }
         } else {
+          if (Number.isFinite(obs?.minWindKnots)) {
+            const minimum = document.createElement("span");
+            const minimumRounded = Math.round(obs.minWindKnots);
+            minimum.className = pickWindClass(minimumRounded);
+            minimum.textContent = `Min. ${minimumRounded} nd`;
+            lineMain.append(minimum);
+          }
           lineMain.append(mean, gust, dir);
         }
 
@@ -1152,7 +1253,6 @@
 
         const lineErr = document.createElement("div");
         lineErr.className = "line-sub";
-        const warnings = obs && Array.isArray(obs.warnings) ? obs.warnings : [];
         lineErr.textContent = [
           c.lastError ? `Derniere erreur: ${c.lastError}` : "",
           ...warnings
@@ -1368,7 +1468,7 @@
         return;
       }
       if (!provider) {
-        alert("Fournisseur inconnu. Seuls Meteociel et Weatherlink embeddable sont supportes.");
+        alert("Fournisseur inconnu. Utilisez Meteociel, Weatherlink embeddable ou une station Windguru (https://www.windguru.cz/station/...).");
         return;
       }
       state.settings.stations.push({
